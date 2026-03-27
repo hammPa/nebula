@@ -1,0 +1,186 @@
+{
+  "wake_words": [
+    { "word": "nebula", "confidence": 0.95 },
+    { "word": "hello yah", "confidence": 0.90 }
+  ],
+  "stop_words": ["stop"],
+  "listen_timeout_sec": 10,
+  "commands": [
+    {
+      "phrases": ["swap"],
+      "shell": "hyprctl dispatch swapnext &",
+      "notify": ""
+    },
+    {
+      "phrases": ["open code", "open vi es kod"],
+      "shell": "hyprctl clients | grep -iq 'class: code' && hyprctl dispatch focuswindow class:code || code &",
+      "notify": "VS Code Focused"
+    },
+    {
+      "phrases": ["fullscreen browser", "browser fullscreen"],
+      "shell": "hyprctl dispatch fullscreen 1 && hyprctl dispatch focuswindow class:firefox &",
+      "notify": "🖥️ Browser Fullscreen"
+    },
+    {
+      "phrases": ["exit fullscreen"],
+      "shell": "hyprctl dispatch fullscreen 0 && hyprctl dispatch focuswindow class:firefox &",
+      "notify": "🪟 Exit Fullscreen"
+    },
+    {
+      "phrases": ["close terminal"],
+      "shell": "__close_class__ kitty",
+      "notify": ""
+    },
+    {
+      "phrases": ["close browser"],
+      "shell": "__close_class__ firefox",
+      "notify": ""
+    },
+    {
+      "phrases": ["close code"],
+      "shell": "__close_class__ code",
+      "notify": ""
+    },
+    {
+      "phrases": ["workspace one", "go to one"],
+      "shell": "hyprctl dispatch workspace 1 &",
+      "notify": "Workspace 1"
+    },
+    {
+      "phrases": ["workspace two", "go to two"],
+      "shell": "hyprctl dispatch workspace 2 &",
+      "notify": "Workspace 2"
+    },
+    {
+      "phrases": ["workspace three", "go to three"],
+      "shell": "hyprctl dispatch workspace 3 &",
+      "notify": "Workspace 3"
+    },
+    {
+      "phrases": ["workspace four", "go to four"],
+      "shell": "hyprctl dispatch workspace 4 &",
+      "notify": "Workspace 4"
+    },
+    {
+      "phrases": ["workspace five", "go to five"],
+      "shell": "hyprctl dispatch workspace 5 &",
+      "notify": "Workspace 5"
+    },
+    {
+      "phrases": ["volume up"],
+      "shell": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 10%+ &",
+      "notify": "🔊 Volume +10%"
+    },
+    {
+      "phrases": ["volume down"],
+      "shell": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 10%- &",
+      "notify": "🔉 Volume -10%"
+    },
+    {
+      "phrases": ["mute"],
+      "shell": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle &",
+      "notify": "🔇 Mute toggled"
+    },
+    {
+      "phrases": ["brightness up"],
+      "shell": "brightnessctl set 10%+ &",
+      "notify": "☀️ Brightness +10%"
+    },
+    {
+      "phrases": ["brightness down"],
+      "shell": "brightnessctl set 10%- &",
+      "notify": "🌑 Brightness -10%"
+    },
+    {
+      "phrases": ["open browser"],
+      "shell": "firefox &",
+      "notify": ""
+    },
+    {
+      "phrases": ["open youtube", "youtube"],
+      "shell": "firefox --new-tab https://youtube.com &",
+      "notify": "Opening YouTube"
+    },
+    {
+      "phrases": ["open whatsapp", "whatsapp", "whats app", "open whats app"],
+      "shell": "firefox --new-tab https://web.whatsapp.com &",
+      "notify": "Opening WhatsApp"
+    },
+    {
+      "phrases": ["open gemini", "gemini"],
+      "shell": "firefox --new-tab https://gemini.google.com &",
+      "notify": "Opening Gemini"
+    },
+    {
+      "phrases": ["open window youtube"],
+      "shell": "firefox --new-window https://youtube.com &",
+      "notify": "Opening YouTube"
+    },
+    {
+      "phrases": ["open window whatsapp"],
+      "shell": "firefox --new-window https://web.whatsapp.com &",
+      "notify": "Opening WhatsApp"
+    },
+    {
+      "phrases": ["open window gemini"],
+      "shell": "firefox --new-window https://gemini.google.com &",
+      "notify": "Opening Gemini"
+    },
+    {
+      "phrases": ["open terminal"],
+      "shell": "kitty &",
+      "notify": ""
+    },
+    {
+      "phrases": ["focus left"],
+      "shell": "hyprctl dispatch movefocus l &",
+      "notify": ""
+    },
+    {
+      "phrases": ["focus right"],
+      "shell": "hyprctl dispatch movefocus r &",
+      "notify": ""
+    },
+    {
+      "phrases": ["lock screen"],
+      "shell": "hyprlock &",
+      "notify": ""
+    },
+    {
+      "phrases": ["hibernate", "hibernasi", "deep sleep"],
+      "shell": "hyprlock & sleep 3 && systemctl hibernate",
+      "notify": "💤 Hibernating system..."
+    },
+    {
+      "phrases": ["suspend", "sleep", "tidur"],
+      "shell": "hyprlock & sleep 1 && systemctl suspend",
+      "notify": "🌙 Suspending system..."
+    },
+    {
+      "phrases": ["go to deep shutdown"],
+      "shell": "poweroff",
+      "notify": "🔌 Shutting down... Goodbye, Hamm!"
+    },
+    {"phrases": ["clear notifications"], "shell": "swaync-client -C &", "notify": ""},
+    {"phrases": ["do not disturb"], "shell": "swaync-client -d &", "notify": "🔕 DND toggled"},
+    {"phrases": ["dnd on"], "shell": "swaync-client -dn &", "notify": "🔕 DND on"},
+    {"phrases": ["dnd off"], "shell": "swaync-client -df &", "notify": "🔔 DND off"},
+    {"phrases": ["open notifications"], "shell": "swaync-client -op &", "notify": ""},
+    {"phrases": ["close notifications"], "shell": "swaync-client -cp &", "notify": ""},
+
+    {"phrases": ["play", "pause"], "shell": "playerctl play-pause &", "notify": ""},
+    {"phrases": ["next song", "next track"], "shell": "playerctl next &", "notify": "⏭"},
+    {"phrases": ["previous song"], "shell": "playerctl previous &", "notify": "⏮"},
+    {"phrases": ["stop music"], "shell": "playerctl stop &", "notify": ""},
+    {
+      "phrases": ["next"],
+      "shell": "wtype -M ctrl -k Tab -m ctrl &",
+      "notify": ""
+    },
+    {
+      "phrases": ["close tab", "tutup tab", "matiin tab"],
+      "shell": "wtype -M ctrl -k w -m ctrl &",
+      "notify": "Tab Closed"
+    }
+  ]
+}

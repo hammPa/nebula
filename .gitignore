@@ -1,0 +1,13 @@
+main_old.cpp
+buat.txt
+CMakeLists_old.txt
+build
+CMakeFiles/
+cmake_install.cmake
+Makefile
+vosk-linux-x86_64-0.3.45.zip
+run_nebula.sh
+monitor_nebula.sh
+CMakeCache.txt
+model/vosk-model-small-en-us-0.15.zip
+nebula
