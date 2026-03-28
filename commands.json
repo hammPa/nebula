@@ -178,6 +178,11 @@
       "notify": ""
     },
     {
+      "phrases": ["previous"],
+      "shell": "wtype -M ctrl -M shift -k Tab -m shift -m ctrl &",
+      "notify": ""
+    },
+    {
       "phrases": ["close tab", "tutup tab", "matiin tab"],
       "shell": "wtype -M ctrl -k w -m ctrl &",
       "notify": "Tab Closed"
