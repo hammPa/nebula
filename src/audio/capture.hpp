@@ -3,7 +3,11 @@
 #include <string>
 #include <cstdio>
 
-using FilePtr = std::unique_ptr<FILE, decltype(&pclose)>;
+// using FilePtr = std::unique_ptr<FILE, decltype(&pclose)>;
+struct PipeDeleter {
+    void operator()(FILE* f) const { if (f) pclose(f); }
+};
+using FilePtr = std::unique_ptr<FILE, PipeDeleter>;
 
 namespace audio_capture {
     // Membungkus logic pembuatan command pipe sox

@@ -41,8 +41,9 @@ bool NebulaEngine::init(const std::string& config_path) {
 
 void NebulaEngine::handle_result(const char* result) {
     try {
+        const std::string raw(result);
         if (json::parse(result).value("text", "").empty()) return;
-        actions::process(result);
+        actions::process(raw);
     } catch (const json::parse_error& e) {
         logger::err("MAIN", std::string("JSON parse error: ") + e.what());
     }

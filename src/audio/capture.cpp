@@ -12,7 +12,7 @@ namespace audio_capture {
             "        noisered " + noise_prof + " 0.21 2>/dev/null";
 
         FILE* pipe = popen(capture_cmd.c_str(), "r");
-        return FilePtr(pipe, pclose);
+        return FilePtr(pipe);
     }
 
     bool smoke_test(FILE* stream) {

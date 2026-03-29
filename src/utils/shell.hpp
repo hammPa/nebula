@@ -9,7 +9,11 @@ namespace shell {
 inline std::string read(const std::string& cmd) {
     std::string result;
     char buf[128];
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
+
+    struct PipeDeleter {
+        void operator()(FILE* f) const { if (f) pclose(f); }
+    };
+    std::unique_ptr<FILE, PipeDeleter> pipe(popen(cmd.c_str(), "r"));
     if (!pipe) return "";
     while (fgets(buf, sizeof(buf), pipe.get()))
         result += buf;
