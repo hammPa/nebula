@@ -9,7 +9,8 @@ namespace audio_capture {
             "arecord -D plughw:CARD=Audio,DEV=0 -r 16000 -f S16_LE -c 1 -t raw -q 2>/dev/null"
             " | sox -t raw -r 16000 -e signed -b 16 -c 1 - "
             "        -t raw -r 16000 -e signed -b 16 -c 1 - "
-            "        noisered " + noise_prof + " 0.21 2>/dev/null";
+            "        noisered " + noise_prof + " 0.21 "
+            "        silence 1 0.1 3% 2>/dev/null";
 
         FILE* pipe = popen(capture_cmd.c_str(), "r");
         return FilePtr(pipe);

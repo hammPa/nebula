@@ -2,4 +2,4 @@ build
 vosk-linux-x86_64-0.3.45.zip
 run_nebula.sh
 monitor_nebula.sh
-model/vosk-model-small-en-us-0.15.zip
+model

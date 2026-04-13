@@ -17,7 +17,7 @@ namespace actions {
 
 static constexpr float MIN_CONF_COMMAND = 0.9f;
 
-// ── String helpers ────────────────────────────────────────────────────────────
+// String helpers ────────────────────────────────────────────────────────────
 
 static std::string trim(const std::string& s) {
     auto start = s.find_first_not_of(" \t\n\r");
@@ -25,7 +25,7 @@ static std::string trim(const std::string& s) {
     return (start == std::string::npos) ? "" : s.substr(start, end - start + 1);
 }
 
-// ── Confidence helpers ────────────────────────────────────────────────────────
+// Confidence helpers ────────────────────────────────────────────────────────
 
 // Ambil confidence terendah untuk kata tertentu di hasil Vosk
 static float word_min_confidence(const json& j, const std::string& target) {
@@ -73,7 +73,7 @@ static bool command_passes(const json& j) {
     return true;
 }
 
-// ── Window helpers ────────────────────────────────────────────────────────────
+// Window helpers ────────────────────────────────────────────────────────────
 
 static void close_window_by_class(const std::string& wclass) {
     try {
@@ -94,7 +94,7 @@ static void close_window_by_class(const std::string& wclass) {
     }
 }
 
-// ── Command runner ────────────────────────────────────────────────────────────
+// Command runner ────────────────────────────────────────────────────────────
 
 static void run_command(const Command& cmd) {
     static constexpr auto CLOSE_PREFIX = "__close_class__ ";
@@ -107,12 +107,23 @@ static void run_command(const Command& cmd) {
         shell::run_bg("notify-send 'Nebula' '" + cmd.notify + "' -t 1500");
 }
 
-// ── Handlers per state ────────────────────────────────────────────────────────
+static bool contains_whole_word(const std::string& text, const std::string& word) {
+    size_t pos = text.find(word);
+    while (pos != std::string::npos) {
+        bool left_ok  = (pos == 0 || !std::isalpha(text[pos - 1]));
+        bool right_ok = (pos + word.size() >= text.size() || !std::isalpha(text[pos + word.size()]));
+        if (left_ok && right_ok) return true;
+        pos = text.find(word, pos + 1);
+    }
+    return false;
+}
+
+// Handlers per state ────────────────────────────────────────────────────────
 
 // Kembalikan true jika wake word ditemukan dan diproses
 static bool handle_wakeword(const json& j, const std::string& text) {
     for (const auto& ww : g_wakeWords) {
-        if (text.find(ww.word) == std::string::npos) continue;
+        if (!contains_whole_word(text, ww.word)) continue;
         if (!wakeword_passes(j, ww)) return true; // ada, tapi conf kurang → tolak & stop
         state::set(state::State::Listening);
         state::reset_timeout();
@@ -137,7 +148,7 @@ static bool handle_stopword(const std::string& text) {
 static bool handle_command(const std::string& text) {
     for (const auto& cmd : g_commands) {
         for (const auto& phrase : cmd.phrases) {
-            if (text.find(phrase) == std::string::npos) continue;
+            if (!contains_whole_word(text, phrase)) continue;
             waybar::set_transcript(text);
             std::this_thread::sleep_for(std::chrono::milliseconds(800));
             run_command(cmd);
@@ -150,7 +161,7 @@ static bool handle_command(const std::string& text) {
     return false;
 }
 
-// ── Entry point ───────────────────────────────────────────────────────────────
+// Entry point ───────────────────────────────────────────────────────────────
 
 void process(const std::string& raw_json) {
     json j;
