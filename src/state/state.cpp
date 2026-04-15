@@ -18,4 +18,10 @@ bool is_timed_out() {
            >= g_listenTimeoutSec;
 }
 
+bool is_idle_timed_out(int seconds) {
+    if (s_current != State::Idle) return false;
+    auto elapsed = std::chrono::steady_clock::now() - s_last_active;
+    return std::chrono::duration_cast<std::chrono::seconds>(elapsed).count() >= seconds;
+}
+
 } // namespace state

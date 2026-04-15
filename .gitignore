@@ -3,3 +3,6 @@ vosk-linux-x86_64-0.3.45.zip
 run_nebula.sh
 monitor_nebula.sh
 model
+NeuralNetwork
+third_party
+bug.txt
