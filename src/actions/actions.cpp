@@ -43,14 +43,14 @@ static float word_min_confidence(const json& j, const std::string& target) {
 
 // Cek apakah semua kata pada wake word memenuhi threshold-nya
 static bool wakeword_passes(const json& j, const WakeWord& ww) {
-    std::istringstream ss(ww.word);
-    std::string token;
     float min_conf = 1.0f;
     bool  found    = false;
-    while (ss >> token) {
+
+    for (const auto& token : ww.tokens) {
         min_conf = std::min(min_conf, word_min_confidence(j, token));
         found = true;
     }
+
     if (!found || min_conf < ww.confidence) {
         logger::info("ACTIONS", "Wake word \"" + ww.word + "\" ditolak — conf "
                   + std::to_string(min_conf) + " < " + std::to_string(ww.confidence));

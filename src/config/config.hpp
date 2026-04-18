@@ -5,6 +5,7 @@
 
 struct WakeWord {
     std::string word;
+    std::vector<std::string> tokens;
     float confidence = 0.95f; // default
 };
 

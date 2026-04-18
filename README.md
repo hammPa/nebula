@@ -9,21 +9,23 @@
 - **Hyprland Integration:** Kontrol penuh terhadap *window manager* melalui perintah suara (pindah *workspace*, buka aplikasi, tutup jendela, dll).
 - **Custom Command Mapping:** Pemetaan perintah suara ke *shell script* atau perintah terminal dengan mudah.
 
-## Arsitektur Baru: Mode Dua Fase & Optimasi Memori
-Nebula sekarang menggunakan arsitektur **Sistem Dua Fase (Two-Phase System)** untuk menjamin performa yang cepat tanpa menguras *resource* komputer:
+## Pembaruan
 
-1. **Fase Idle (Wake Word NN):** Menggunakan model Neural Network (ONNX) yang sangat ringan sebagai "penjaga gerbang". Sistem ini akan terus mendengarkan kata panggil tanpa membebani CPU.
-2. **Fase Listening (Vosk ASR):** Mesin pengenal suara utama (Vosk) hanya akan mengambil alih tugas saat *wake word* terdeteksi, memastikan terjemahan perintah yang akurat.
-3. **Smart Memory Management:** Nebula dilengkapi fitur *auto-unload*. Jika sistem diam selama lebih dari 30 detik, model Vosk (yang memakan RAM ~170MB) akan dilepas dari memori dan baru dimuat kembali saat dibutuhkan.
-4. **Sistem Fallback:** Jika file model *wake word* gagal dimuat, Nebula akan otomatis beroperasi dalam mode aman (Vosk selalu aktif).
+1. **Nebula kini tidak lagi menggunakan akses hardware eksklusif (plughw):** Dengan integrasi -D default, Nebula bisa berjalan bersamaan dengan Discord, Spotify, atau Zoom. Anda bisa memberikan perintah suara tanpa harus mematikan musik atau keluar dari voice chat.
+2. **Menggunakan algoritma EMA:** Nebula menggunakan algoritma Exponential Moving Average (EMA) untuk mempelajari tingkat kebisingan ruangan Anda secara real-time.
+3. **Highpass/Lowpass Filter:** Menghapus frekuensi rendah (deru mesin) dan frekuensi tinggi (noise elektrik).
+4. **Ultra-Efficient INT8 Inference:** Model wake-word telah dikuantisasi ke presisi INT8, mengurangi ukuran model dan beban CPU secara drastis, sehingga sangat aman untuk berjalan secara terus-menerus (always-on) di background.
+
 
 ## Tech Stack
 
 - **Language:** C++ (Standard 17/20)
 - **Speech Engine:** [Vosk API](https://alphacephei.com/vosk/)
 - **Neural Network Runtime:** [ONNX Runtime](https://onnxruntime.ai/) (untuk *wake word*)
-- **Audio I/O:** PortAudio atau ALSA
+- **Audio Pipeline:** SoX (Sound eXchange)
+- **Audio Server:** PipeWire / PulseAudio
 - **System Control:** Shell integration (execv/system calls)
+- **OS Target:** Linux Mint Hyprland (Full Feature), ZorinOs (Partial Feature)
 
 ## Prasyarat
 

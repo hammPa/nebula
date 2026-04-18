@@ -9,8 +9,13 @@ struct PipeDeleter {
 };
 using FilePtr = std::unique_ptr<FILE, PipeDeleter>;
 
+
 namespace audio_capture {
+    enum class StreamMode {
+        IDLE,       // Raw (untuk Wake Word CRNN)
+        LISTENING   // Difilter SoX (untuk Vosk)
+    };
     // Membungkus logic pembuatan command pipe sox
-    FilePtr open_stream(const std::string& noise_prof);
+    FilePtr open_stream(StreamMode mode);
     bool smoke_test(FILE* stream);
 }

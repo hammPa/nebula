@@ -4,29 +4,28 @@
 #include <string>
 #include <vector>
 #include <array>
-#include "kiss_fft.h"
 
-// Konfigurasi MFCC, harus sama dengan yang dipakai saat training di Python
+// Konfigurasi harus sama persis dengan Python torchaudio
 static constexpr int   MFCC_BINS       = 40;
-static constexpr int   MFCC_FRAMES     = 98;
+static constexpr int   MFCC_FRAMES     = 148;
 static constexpr int   SAMPLE_RATE     = 16000;
-static constexpr float TARGET_DURATION = 1.0f;
+static constexpr float TARGET_DURATION = 1.5f;
 static constexpr int   TARGET_SAMPLES  = static_cast<int>(SAMPLE_RATE * TARGET_DURATION); // 24000
 static constexpr int   HOP_LENGTH      = 160;
-static constexpr int   N_FFT           = 400;
-static constexpr float DETECT_THRESHOLD = 0.83f;
-static constexpr float SILENCE_THRESHOLD = 0.015f; // RMS minimum
+
+// Threshold deteksi
+static constexpr float DETECT_THRESHOLD = 0.85f;  
+static constexpr float SILENCE_THRESHOLD_SQ = 0.035f * 0.035f; // 0.0004f
 
 class WakeWordDetector {
 public:
     WakeWordDetector();
-    ~WakeWordDetector();
+    ~WakeWordDetector() = default;
 
-    // Load model ONNX, return false kalau gagal
-    bool init(const std::string& model_path);
+    // Load DUA model ONNX (MFCC dan CRNN)
+    bool init(const std::string& mfcc_model_path, const std::string& crnn_model_path);
 
-    // Terima audio PCM int16, simpan ke buffer internal
-    // Return true kalau wake word terdeteksi
+    // Terima audio PCM int16, return true kalau wake word terdeteksi
     bool feed(const int16_t* pcm, int num_samples);
 
     // Reset buffer setelah wake word terdeteksi
@@ -38,40 +37,26 @@ private:
     // Bagian ONNX Runtime
     Ort::Env                        env_;
     Ort::SessionOptions             session_opts_;
-    std::unique_ptr<Ort::Session>   session_;
+    std::unique_ptr<Ort::Session>   session_mfcc_;
+    std::unique_ptr<Ort::Session>   session_crnn_;
     Ort::MemoryInfo                 mem_info_;
 
     bool ready_ = false;
+    int detection_count_ = 0;
 
-    // Buffer audio (ring buffer)
-    // Menyimpan 1.5 detik audio terakhir
-    std::vector<float> audio_buf_;   // nilai float [-1.0, 1.0]
-    int                buf_pos_ = 0; // posisi tulis berikutnya
+    // Ring buffer audio
+    std::vector<float> audio_buf_;   
+    int                buf_pos_ = 0; 
 
-    // Helper untuk MFCC
-    // Hanning window untuk N_FFT
-    std::array<float, N_FFT> hann_window_;
+    // Akumulator agar inferensi tidak jalan di setiap frame yang terlalu kecil
+    int accumulated_samples_ = 0;
+    static constexpr int INFER_STRIDE_SAMPLES = 8000; // Inferensi setiap 500ms
 
-    void   init_hann_window();
-    float  dot(const float* a, const float* b, int n);
-    void   compute_mfcc(const float* audio, int n_samples,
-                        std::vector<float>& out_mfcc);
+    std::vector<float> linear_buf_;
 
-    // Mel filterbank, diinisialisasi sekali saat init
-    std::vector<std::vector<float>> mel_filters_;  // (N_MELS x N_FFT/2+1)
-    void init_mel_filters(int n_mels, int n_fft, int sr,
-                          float fmin, float fmax);
-    static float hz_to_mel(float hz);
-    static float mel_to_hz(float mel);
 
-    // DCT untuk MFCC
-    void apply_dct(const std::vector<float>& log_mel,
-                   int n_mfcc, std::vector<float>& out);
-
-    // Jalankan inferensi model
-    float infer(const std::vector<float>& mfcc_flat);
-
-    kiss_fft_cfg fft_cfg_ = nullptr;
-    int feed_counter_ = 0;
-    static constexpr int INFER_EVERY_N = 3; // inferensi tiap 3 chunk
+    // ini semua dijadikan variabel private agar tidak di alokasi terus per500ms pada while utama, jdi tinggal reuse
+    // Ort::RunOptions run_opts{nullptr};
+    std::array<int64_t, 2> pcm_shape;
+    std::array<int64_t, 4> crnn_shape;
 };

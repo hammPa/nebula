@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(Nebula VERSION 9.0)
+project(Nebula VERSION 10.0)
 set(CMAKE_CXX_STANDARD 17)
 
 # lokasi output binary
@@ -22,6 +22,37 @@ set(NEBULA_SOURCES
 
 add_executable(nebula ${NEBULA_SOURCES})
 
+# ── Konfigurasi Mode Build (Debug vs Production) ──────────────────────────────
+# Jika tidak ada flag yang diberikan saat cmake, jadikan "Release" (Production) sebagai default
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Pilih mode build: Debug atau Release" FORCE)
+endif()
+
+# Terapkan flag compiler berdasarkan mode
+if(CMAKE_BUILD_TYPE MATCHES "Debug")
+    message(STATUS "[Nebula] Mode Build : DEBUG (Tanpa optimasi, mudah di-debug)")
+    # -g untuk memunculkan simbol debug (bisa dibaca gdb/valgrind)
+    # -O0 mematikan optimasi compiler
+    target_compile_options(nebula PRIVATE -g -O0 -Wall)
+    
+    # Opsional: Bisa tambahkan macro C++ khusus debug
+    target_compile_definitions(nebula PRIVATE DEBUG_MODE)
+else()
+    message(STATUS "[Nebula] Mode Build : PRODUCTION / RELEASE (Kinerja maksimal)")
+    # Optimasi -O3, instruksi CPU lokal, dan optimasi matematika cepat
+    target_compile_options(nebula PRIVATE -O3 -march=native -ffast-math)
+    
+    # -DNDEBUG mematikan assert() di C++ yang bisa memakan CPU
+    target_compile_definitions(nebula PRIVATE NDEBUG)
+
+    # strip agar ukuran kecil
+    if(CMAKE_BUILD_TYPE MATCHES "Release")
+    add_custom_command(TARGET nebula POST_BUILD
+        COMMAND strip $<TARGET_FILE:nebula>
+        COMMENT "[Nebula] Membuang simbol debug (stripping) untuk mengecilkan ukuran file..."
+    )
+    endif()
+endif()
 
 set_source_files_properties(
     third_party/kissfft/kiss_fft.c

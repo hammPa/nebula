@@ -33,7 +33,14 @@ bool config_load(const std::string& path) {
                 ww.word       = w.value("word", "");
                 ww.confidence = w.value("confidence", 0.95f);
             }
-            if (!ww.word.empty()) g_wakeWords.push_back(ww);
+            if (!ww.word.empty()){
+                std::istringstream ss(ww.word);
+                std::string token;
+                while(ss >> token){
+                    ww.tokens.push_back(token);
+                }
+                g_wakeWords.push_back(ww);
+            }
         }
 
         // ── Stop words ─────────────────────────────────────────────────────

@@ -7,10 +7,15 @@
 #include "../utils/logger.hpp"
 #include "../audio/capture.hpp"
 #include <csignal>
+#include <malloc.h>
 
 extern volatile std::sig_atomic_t g_running;
 
-static constexpr const char* WAKEWORD_MODEL = "nebula_wake_word.onnx";
+static constexpr const int UNLOAD_TIMEOUT = 10;
+static int check_counter = 0;
+static constexpr const char* MFCC_MODEL     = "mfcc_preprocessor.onnx";
+// static constexpr const char* WAKEWORD_MODEL = "nebula_wake_word.onnx";
+static constexpr const char* WAKEWORD_MODEL = "nebula_wake_word_int8.onnx";
 
 NebulaEngine::NebulaEngine() : model(nullptr, vosk_model_free), rec(nullptr, vosk_recognizer_free) {}
 
@@ -43,6 +48,7 @@ void NebulaEngine::unload_vosk() {
     rec.reset();
     model.reset();
     vosk_loaded_ = false;
+    malloc_trim(0);
     logger::info("MAIN", "Vosk diturunkan dari RAM.");
 }
 
@@ -57,7 +63,7 @@ bool NebulaEngine::init(const std::string& config_path) {
     // load vosk diubah jadi saat pertama run
     
     // load wakeword
-    wakeword_ready_ = wakeword_.init(WAKEWORD_MODEL);
+    wakeword_ready_ = wakeword_.init(MFCC_MODEL, WAKEWORD_MODEL);
     if (!wakeword_ready_) {
         // Tidak fatal — fallback ke perilaku lama (Vosk selalu aktif)
         logger::err("MAIN", "Wake word model gagal dimuat — fallback ke Vosk penuh.");
@@ -88,7 +94,7 @@ void NebulaEngine::run_idle_phase(const char* buf, int n) {
  
     if (wakeword_.feed(pcm, n_samples)) {
         // Wake word terdeteksi oleh NN
-        wakeword_.reset_buffer();
+        // wakeword_.reset_buffer();
 
         if (!load_vosk()) {
             logger::err("MAIN", "Gagal load Vosk setelah wake word.");
@@ -111,16 +117,16 @@ void NebulaEngine::run_listening_phase(const char* buf, int n) {
 }
 
 void NebulaEngine::run() {
-    const std::string noise_prof = "src/nebula_noise.prof";
-    auto capture = audio_capture::open_stream(noise_prof);
+    audio_capture::StreamMode current_mode = wakeword_ready_ 
+        ? audio_capture::StreamMode::IDLE 
+        : audio_capture::StreamMode::LISTENING;
+
+    auto capture = audio_capture::open_stream(current_mode);
 
     if (!capture || !audio_capture::smoke_test(capture.get())) {
         if (!capture) logger::err("MAIN", "Mic tidak bisa diakses!");
         return;
     }
-
-    logger::info("MAIN", "Nebula siap. Ucapkan \"nebula\"...");
-    logger::info("MAIN", "Noise reduction aktif: " + noise_prof);
 
     // detect wakeword
     if (wakeword_ready_) {
@@ -128,27 +134,53 @@ void NebulaEngine::run() {
     } else {
         logger::info("MAIN", "Nebula siap [mode Vosk]. Ucapkan \"nebula\"...");
     }
-    logger::info("MAIN", "Noise reduction aktif: " + noise_prof);
+    logger::info("MAIN", "Noise reduction aktif: ");
 
     char buf[3200];
     while (g_running) {
-        if (state::is_timed_out()) {
-            state::set(state::State::Idle);
-            state::reset_timeout(); // kalau udah timeout maka kan idle, kalau lebih 30 detik unload vosk
-            audio::feedback(audio::Event::Timeout);
-            waybar::set_idle();
-            wakeword_.reset_buffer();
-            logger::info("MAIN", "Timeout — kembali ke Standby.");
+        // LOGIKA SWITCHING STREAM (RAW vs FILTER)
+        audio_capture::StreamMode target_mode = (state::get() == state::State::Idle && wakeword_ready_)
+            ? audio_capture::StreamMode::IDLE 
+            : audio_capture::StreamMode::LISTENING;
+
+        if (current_mode != target_mode) {
+            logger::info("MAIN", target_mode == audio_capture::StreamMode::IDLE 
+                ? "Mematikan filter SoX (Pindah ke Raw Audio)" 
+                : "Menghidupkan filter SoX (Pindah ke Vosk)");
+            
+            capture.reset(); // Tutup stream 'arecord' yang lama
+            capture = audio_capture::open_stream(target_mode); // Buka yang baru
+            current_mode = target_mode;
+            
+            if (!capture) {
+                logger::err("MAIN", "Gagal switch stream mic!");
+                break;
+            }
+            continue; // Skip sisa loop ini untuk langsung baca dari stream yang baru
         }
 
-        if (state::is_idle_timed_out(30) && vosk_loaded_) {
-            unload_vosk();
-            logger::info("MAIN", "Vosk di unload.");
-            // Tidak perlu ubah state, tetap Idle.
-        }
 
         const size_t n = std::fread(buf, 1, sizeof(buf), capture.get());
         if (n == 0) break;
+
+
+        if(++check_counter >= 10){
+            check_counter = 0;
+            if (state::is_timed_out()) {
+                state::set(state::State::Idle);
+                state::reset_timeout(); // kalau udah timeout maka kan idle, kalau lebih 30 detik unload vosk
+                audio::feedback(audio::Event::Timeout);
+                waybar::set_idle();
+                wakeword_.reset_buffer();
+                logger::info("MAIN", "Timeout — kembali ke Standby.");
+            }
+    
+            if (state::is_idle_timed_out(UNLOAD_TIMEOUT) && vosk_loaded_) {
+                unload_vosk();
+                logger::info("MAIN", "Vosk di unload setelah 5 menit idle.");
+                // Tidak perlu ubah state, tetap Idle.
+            }
+        }
 
         // logger::info("ntahlah", wakeword_ready_ ? "ready oi": "no redy");
         if (wakeword_ready_) {
