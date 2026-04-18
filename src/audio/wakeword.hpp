@@ -23,7 +23,7 @@ public:
     ~WakeWordDetector() = default;
 
     // Load DUA model ONNX (MFCC dan CRNN)
-    bool init(const std::string& mfcc_model_path, const std::string& crnn_model_path);
+    bool init(const std::string& model_path);
 
     // Terima audio PCM int16, return true kalau wake word terdeteksi
     bool feed(const int16_t* pcm, int num_samples);
@@ -37,8 +37,7 @@ private:
     // Bagian ONNX Runtime
     Ort::Env                        env_;
     Ort::SessionOptions             session_opts_;
-    std::unique_ptr<Ort::Session>   session_mfcc_;
-    std::unique_ptr<Ort::Session>   session_crnn_;
+    std::unique_ptr<Ort::Session>   session_;
     Ort::MemoryInfo                 mem_info_;
 
     bool ready_ = false;
@@ -58,5 +57,4 @@ private:
     // ini semua dijadikan variabel private agar tidak di alokasi terus per500ms pada while utama, jdi tinggal reuse
     // Ort::RunOptions run_opts{nullptr};
     std::array<int64_t, 2> pcm_shape;
-    std::array<int64_t, 4> crnn_shape;
 };

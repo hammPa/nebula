@@ -7,15 +7,14 @@
 WakeWordDetector::WakeWordDetector()
     : env_(ORT_LOGGING_LEVEL_WARNING, "nebula_wakeword"),
       mem_info_(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault)),
-      pcm_shape({1, TARGET_SAMPLES}),
-      crnn_shape({1, 1, MFCC_BINS, MFCC_FRAMES})
+      pcm_shape({1, TARGET_SAMPLES})
 
 {
     audio_buf_.assign(TARGET_SAMPLES, 0.0f);
     linear_buf_.assign(TARGET_SAMPLES, 0.0f);
 }
 
-bool WakeWordDetector::init(const std::string& mfcc_model_path, const std::string& crnn_model_path) {
+bool WakeWordDetector::init(const std::string& model_path) {
     try {
         session_opts_.SetIntraOpNumThreads(1);
         session_opts_.SetInterOpNumThreads(1);
@@ -25,8 +24,7 @@ bool WakeWordDetector::init(const std::string& mfcc_model_path, const std::strin
         session_opts_.AddConfigEntry("session.inter_op.allow_spinning", "0");
         session_opts_.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
 
-        session_mfcc_ = std::make_unique<Ort::Session>(env_, mfcc_model_path.c_str(), session_opts_);
-        session_crnn_ = std::make_unique<Ort::Session>(env_, crnn_model_path.c_str(), session_opts_);
+        session_ = std::make_unique<Ort::Session>(env_, model_path.c_str(), session_opts_);
 
         ready_ = true;
         logger::info("WAKEWORD", "Model MFCC & CRNN ONNX berhasil dimuat.");
@@ -63,6 +61,7 @@ bool WakeWordDetector::feed(const int16_t* pcm, int num_samples) {
     // Jika 500ms terakhir ini hening, batalkan semua proses berat di bawahnya.
     if (current_chunk_rms_sq < SILENCE_THRESHOLD_SQ) {
         // CPU Anda terbebas dari alokasi memori dan inferensi di sini!
+        // logger::info("WAKEWORD_DEBUG", "SKIP (hening) rms_sq=" + std::to_string(current_chunk_rms_sq));
         return false; 
     }
 
@@ -85,33 +84,20 @@ bool WakeWordDetector::feed(const int16_t* pcm, int num_samples) {
     if (rms_sq < SILENCE_THRESHOLD_SQ) return false;
 
     try {
-        // TAHAP 1: MFCC PREPROCESSING (ONNX 1)
+        static const char* in_names[]  = {"mfcc_pcm_audio"};
+        static const char* out_names[] = {"output"};
+
+        Ort::RunOptions run_opts{nullptr};
         Ort::Value pcm_tensor = Ort::Value::CreateTensor<float>(
-            mem_info_, linear_buf_.data(), linear_buf_.size(), pcm_shape.data(), pcm_shape.size()
+            mem_info_, linear_buf_.data(), linear_buf_.size(),
+            pcm_shape.data(), pcm_shape.size()
         );
 
-        static const char* mfcc_in[]  = {"pcm_audio"};
-        static const char* mfcc_out[] = {"mfcc_features"};
-
-        auto mfcc_results = session_mfcc_->Run(
-            Ort::RunOptions{nullptr}, mfcc_in, &pcm_tensor, 1, mfcc_out, 1
+        auto results = session_->Run(
+            run_opts, in_names, &pcm_tensor, 1, out_names, 1
         );
 
-        float* mfcc_data = mfcc_results[0].GetTensorMutableData<float>();
-
-        // TAHAP 2: INFERENSI CRNN (ONNX 2)
-        Ort::Value crnn_tensor = Ort::Value::CreateTensor<float>(
-            mem_info_, mfcc_data, MFCC_BINS * MFCC_FRAMES, crnn_shape.data(), crnn_shape.size()
-        );
-
-        static const char* crnn_in[]  = {"input"};
-        static const char* crnn_out[] = {"output"};
-
-        auto crnn_results = session_crnn_->Run(
-            Ort::RunOptions{nullptr}, crnn_in, &crnn_tensor, 1, crnn_out, 1
-        );
-
-        float score = crnn_results[0].GetTensorMutableData<float>()[0];
+        float score = results[0].GetTensorMutableData<float>()[0];
 
         // LOG DEBUG: Buka comment ini jika ingin melihat pergerakan skor di terminal
         // logger::info("WAKEWORD_DEBUG", "Skor: " + std::to_string(score) + " | RMS: " + std::to_string(rms));

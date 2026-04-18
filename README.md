@@ -11,17 +11,14 @@
 
 ## Pembaruan
 
-1. **Nebula kini tidak lagi menggunakan akses hardware eksklusif (plughw):** Dengan integrasi -D default, Nebula bisa berjalan bersamaan dengan Discord, Spotify, atau Zoom. Anda bisa memberikan perintah suara tanpa harus mematikan musik atau keluar dari voice chat.
-2. **Menggunakan algoritma EMA:** Nebula menggunakan algoritma Exponential Moving Average (EMA) untuk mempelajari tingkat kebisingan ruangan Anda secara real-time.
-3. **Highpass/Lowpass Filter:** Menghapus frekuensi rendah (deru mesin) dan frekuensi tinggi (noise elektrik).
-4. **Ultra-Efficient INT8 Inference:** Model wake-word telah dikuantisasi ke presisi INT8, mengurangi ukuran model dan beban CPU secara drastis, sehingga sangat aman untuk berjalan secara terus-menerus (always-on) di background.
+1. **Ultra-Efficient Merged ONNX Inference:** Pipeline MFCC preprocessing dan model wake-word CRNN digabung menjadi satu graph ONNX tunggal (`nebula_full.onnx`), menghilangkan overhead transfer data antar-session. Model dikuantisasi ke presisi INT8 untuk meminimalkan beban CPU saat berjalan *always-on* di background.
 
 
 ## Tech Stack
 
 - **Language:** C++ (Standard 17/20)
 - **Speech Engine:** [Vosk API](https://alphacephei.com/vosk/)
-- **Neural Network Runtime:** [ONNX Runtime](https://onnxruntime.ai/) (untuk *wake word*)
+- **Neural Network Runtime:** [ONNX Runtime](https://onnxruntime.ai/) (single merged session: MFCC preprocessor + CRNN wake word, INT8 quantized)
 - **Audio Pipeline:** SoX (Sound eXchange)
 - **Audio Server:** PipeWire / PulseAudio
 - **System Control:** Shell integration (execv/system calls)
@@ -53,8 +50,14 @@ wget [https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip](https
 unzip vosk-model-small-en-us-0.15.zip -d model/
 ```
 
-### 3. Latih Model Wake Word ONNX dengan CNN
-Pastikan file model nebula_wake_word.onnx sudah berada di direktori root proyek atau di dalam folder build nantinya agar sistem tidak memicu mode fallback. Atau gunakan contoh model pada repository ini.
+### 3. Latih Model Wake Word ONNX
+```bash
+Pastikan file model nebula_wake_word.onnx sudah berada di direktori root proyek agar sistem tidak memicu mode fallback.
+Model `nebula_full.onnx` adalah hasil penggabungan dua graph ONNX:
+- `mfcc_preprocessor.onnx` — preprocessing audio ke fitur MFCC
+- `nebula_wake_word_int8.onnx` — CRNN classifier (INT8 quantized)
+Atau gunakan `nebula_full.onnx` yang sudah tersedia di repositori.
+``````
 
 ### 4. Kompilasi
 ```bash

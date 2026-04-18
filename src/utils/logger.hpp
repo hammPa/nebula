@@ -25,8 +25,8 @@ inline void err(const std::string& module, const std::string& msg) {
 inline void banner() {
     std::cout << C_BOLD << C_CYAN
               << "╔══════════════════════════════════╗\n"
-              << "║     NEBULA V10  —  HYPRLAND      ║\n"
-              << "║      Neural Network Enhance      ║\n"
+              << "║     NEBULA V10.1  —  HYPRLAND    ║\n"
+              << "║   Neural Network Merged Session  ║\n"
               << "╚══════════════════════════════════╝\n"
               << C_RESET;
 }

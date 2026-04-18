@@ -11,11 +11,12 @@
 
 extern volatile std::sig_atomic_t g_running;
 
-static constexpr const int UNLOAD_TIMEOUT = 10;
+static constexpr const int UNLOAD_TIMEOUT = 300;
 static int check_counter = 0;
-static constexpr const char* MFCC_MODEL     = "mfcc_preprocessor.onnx";
+// static constexpr const char* MFCC_MODEL     = "mfcc_preprocessor.onnx";
 // static constexpr const char* WAKEWORD_MODEL = "nebula_wake_word.onnx";
-static constexpr const char* WAKEWORD_MODEL = "nebula_wake_word_int8.onnx";
+// static constexpr const char* WAKEWORD_MODEL = "nebula_wake_word_int8.onnx";
+static constexpr const char* WAKEWORD_MODEL = "nebula_full.onnx";
 
 NebulaEngine::NebulaEngine() : model(nullptr, vosk_model_free), rec(nullptr, vosk_recognizer_free) {}
 
@@ -63,7 +64,7 @@ bool NebulaEngine::init(const std::string& config_path) {
     // load vosk diubah jadi saat pertama run
     
     // load wakeword
-    wakeword_ready_ = wakeword_.init(MFCC_MODEL, WAKEWORD_MODEL);
+    wakeword_ready_ = wakeword_.init(WAKEWORD_MODEL);
     if (!wakeword_ready_) {
         // Tidak fatal — fallback ke perilaku lama (Vosk selalu aktif)
         logger::err("MAIN", "Wake word model gagal dimuat — fallback ke Vosk penuh.");
@@ -77,9 +78,7 @@ bool NebulaEngine::init(const std::string& config_path) {
 
 void NebulaEngine::handle_result(const char* result) {
     try {
-        const std::string raw(result);
-        if (json::parse(result).value("text", "").empty()) return;
-        actions::process(raw);
+        actions::process(result);
     } catch (const json::parse_error& e) {
         logger::err("MAIN", std::string("JSON parse error: ") + e.what());
     }

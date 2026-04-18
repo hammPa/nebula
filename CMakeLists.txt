@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(Nebula VERSION 10.0)
+project(Nebula VERSION 10.1)
 set(CMAKE_CXX_STANDARD 17)
 
 # lokasi output binary
