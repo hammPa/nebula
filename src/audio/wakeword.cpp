@@ -1,8 +1,6 @@
 #include "wakeword.hpp"
 #include "../utils/logger.hpp"
-#include <cmath>
 #include <algorithm>
-#include <numeric>
 
 WakeWordDetector::WakeWordDetector()
     : env_(ORT_LOGGING_LEVEL_WARNING, "nebula_wakeword"),
@@ -40,7 +38,7 @@ bool WakeWordDetector::feed(const int16_t* pcm, int num_samples) {
 
     float chunk_energy = 0.0f; // Menyimpan total energi dari potongan audio saat ini
 
-    // 1. Tulis ke ring buffer dan konversi int16 ke float [-1.0, 1.0]
+    // Tulis ke ring buffer dan konversi int16 ke float [-1.0, 1.0]
     for (int i = 0; i < num_samples; ++i) {
         float val = static_cast<float>(pcm[i]) / 32768.0f;
         audio_buf_[buf_pos_] = val;
@@ -52,7 +50,7 @@ bool WakeWordDetector::feed(const int16_t* pcm, int num_samples) {
     // Hitung rata-rata energi (RMS kuadrat) khusus untuk potongan (chunk) terbaru ini
     float current_chunk_rms_sq = chunk_energy / num_samples;
 
-    // 2. Akumulasi sampel (Inferensi tiap 8000 sampel / 500ms)
+    // Akumulasi sampel (Inferensi tiap 8000 sampel / 500ms)
     accumulated_samples_ += num_samples;
     if (accumulated_samples_ < INFER_STRIDE_SAMPLES) return false; 
     accumulated_samples_ = 0;
@@ -65,7 +63,7 @@ bool WakeWordDetector::feed(const int16_t* pcm, int num_samples) {
         return false; 
     }
 
-    // 3. Ekstrak audio dari ring buffer menjadi linear (oldest -> newest)
+    // Ekstrak audio dari ring buffer menjadi linear (oldest -> newest)
     float dc_mean = 0.0f;
     for (int i = 0; i < TARGET_SAMPLES; ++i) {
         float val = audio_buf_[(buf_pos_ + i) % TARGET_SAMPLES];
@@ -73,7 +71,7 @@ bool WakeWordDetector::feed(const int16_t* pcm, int num_samples) {
         dc_mean += val; 
     }
 
-    // 4. Hilangkan DC Offset & Hitung RMS untuk cek keheningan
+    // Hilangkan DC Offset & Hitung RMS untuk cek keheningan
     dc_mean /= TARGET_SAMPLES;
     float rms = 0.0f;
     for (int i = 0; i < TARGET_SAMPLES; ++i) {

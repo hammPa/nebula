@@ -4,5 +4,6 @@ run_nebula.sh
 monitor_nebula.sh
 model
 NeuralNetwork
-third_party
 bug.txt
+nebula_metadata.json
+nebula_model_int8.onnx

@@ -2,6 +2,7 @@
 #include <memory>
 #include <string>
 #include <cstdio>
+#include <vector>
 
 // using FilePtr = std::unique_ptr<FILE, decltype(&pclose)>;
 struct PipeDeleter {
@@ -17,5 +18,5 @@ namespace audio_capture {
     };
     // Membungkus logic pembuatan command pipe sox
     FilePtr open_stream(StreamMode mode);
-    bool smoke_test(FILE* stream);
+    bool smoke_test(FILE* stream, std::vector<char>& prefetch);
 }

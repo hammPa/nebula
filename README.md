@@ -11,8 +11,16 @@
 
 ## Pembaruan
 
-1. **Ultra-Efficient Merged ONNX Inference:** Pipeline MFCC preprocessing dan model wake-word CRNN digabung menjadi satu graph ONNX tunggal (`nebula_full.onnx`), menghilangkan overhead transfer data antar-session. Model dikuantisasi ke presisi INT8 untuk meminimalkan beban CPU saat berjalan *always-on* di background.
+1. **Fork Feedback Audio Optimation:** Mengubah implementasi feedback menjadi 1 fork yang awalnya 2 fork.
+2. **Capture Config Optimation:** Menjadikan perintah `arecord` dan `sox` sebagai `constexpr` agar tidak ada alokasi heap saat `open_stream()` dipanggil.
+3. **Nebula Engine Modularization:** Memecah `nebula_engine` menjadi 3 file terpisah berdasarkan tanggung jawab.
 
+   **Sebelum:** Semua logika (Vosk lifecycle, stream switching, timeout, loop utama) ada di dalam satu class `NebulaEngine`.
+
+   **Sesudah:**
+   - `vosk_manager.hpp/.cpp` — mengenkapsulasi semua urusan Vosk: load/unload model, build grammar, accept waveform, dan return hasil JSON. Termasuk guard: jika `rec` gagal dibuat saat `load()`, `model` otomatis di-reset.
+   - `stream_controller.hpp/.cpp` — mengenkapsulasi buka/tutup stream `arecord`/`sox`, switch mode IDLE↔LISTENING, dan baca audio.
+   - `nebula_engine.hpp/.cpp` — kini hanya berperan sebagai orkestrator: memanggil `VoskManager` dan `StreamController`, dispatch ke fase yang sesuai, dan menangani timeout lewat `check_timeouts()`.
 
 ## Tech Stack
 
@@ -57,7 +65,7 @@ Model `nebula_full.onnx` adalah hasil penggabungan dua graph ONNX:
 - `mfcc_preprocessor.onnx` — preprocessing audio ke fitur MFCC
 - `nebula_wake_word_int8.onnx` — CRNN classifier (INT8 quantized)
 Atau gunakan `nebula_full.onnx` yang sudah tersedia di repositori.
-``````
+```
 
 ### 4. Kompilasi
 ```bash

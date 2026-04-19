@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(Nebula VERSION 10.1)
+project(Nebula VERSION 10.3)
 set(CMAKE_CXX_STANDARD 17)
 
 # lokasi output binary
@@ -13,11 +13,12 @@ set(NEBULA_SOURCES
     src/state/state.cpp
     src/audio/feedback.cpp
     src/engine/nebula_engine.cpp
+    src/engine/vosk_manager.cpp
+    src/engine/stream_controller.cpp
     src/audio/capture.cpp
     src/audio/wakeword.cpp
     src/waybar/waybar.cpp
     src/actions/actions.cpp
-    third_party/kissfft/kiss_fft.c
 )
 
 add_executable(nebula ${NEBULA_SOURCES})
@@ -54,17 +55,11 @@ else()
     endif()
 endif()
 
-set_source_files_properties(
-    third_party/kissfft/kiss_fft.c
-    PROPERTIES COMPILE_FLAGS "-w"
-)
-
 # ── Include paths ─────────────────────────────────────────────────────────────
 # Vosk header di root project (vosk_api.h)
 target_include_directories(nebula PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/libs/include
     /usr/local/include/onnxruntime
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/kissfft
 )
 
 
@@ -108,24 +103,13 @@ configure_file(
 
 
 
-# Copy model ONNX ke build dir kalau sudah ada
-set(ONNX_MODEL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/nebula_wake_word.onnx)
-set(ONNX_DATA_SRC  ${CMAKE_CURRENT_SOURCE_DIR}/nebula_wake_word.onnx.data)
- 
-if(EXISTS ${ONNX_MODEL_SRC})
-    configure_file(${ONNX_MODEL_SRC} ${CMAKE_CURRENT_BINARY_DIR}/nebula_wake_word.onnx COPYONLY)
-    message(STATUS "[Nebula] Model ONNX ditemukan dan akan di-copy ke build dir.")
+# ── Copy model ONNX (nebula_full.onnx) ───────────────────────────────────────
+set(ONNX_FULL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/nebula_full.onnx)
+if(EXISTS ${ONNX_FULL_SRC})
+    configure_file(${ONNX_FULL_SRC} ${CMAKE_CURRENT_BINARY_DIR}/nebula_full.onnx COPYONLY)
+    message(STATUS "[Nebula] nebula_full.onnx ditemukan.")
 else()
-    message(WARNING
-        "[Nebula] nebula_wake_word.onnx tidak ditemukan di root project.\n"
-        "Letakkan file ini di: ${CMAKE_CURRENT_SOURCE_DIR}/nebula_wake_word.onnx"
-    )
-endif()
- 
-# Copy .data juga kalau ada (model besar biasanya punya file .onnx.data)
-if(EXISTS ${ONNX_DATA_SRC})
-    configure_file(${ONNX_DATA_SRC} ${CMAKE_CURRENT_BINARY_DIR}/nebula_wake_word.onnx.data COPYONLY)
-    message(STATUS "[Nebula] Model data file (.onnx.data) ditemukan.")
+    message(WARNING "[Nebula] nebula_full.onnx tidak ditemukan di root project.")
 endif()
 
 
