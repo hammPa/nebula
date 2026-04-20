@@ -16,6 +16,7 @@ private:
     StreamController stream{false};
     WakeWordDetector wakeword_;
     bool wakeword_ready_ = false;
+    audio_capture::StreamMode current_stream_mode() const;
 
     // fase run:
     // idle: wakeword
@@ -24,4 +25,5 @@ private:
     void run_listening_phase(const char* buf, int n);
     void handle_result(const char* result);
     void check_timeouts();
+    void process_audio(const char* buf, int n);
 };

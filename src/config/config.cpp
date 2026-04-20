@@ -21,6 +21,7 @@ bool config_load(const std::string& path) {
 
         // ── Wake words dengan per-word confidence ──────────────────────────
         g_wakeWords.clear();
+        g_wakeWords.reserve(j.at("wake_words").size()); // beritahu vector untuk mengalokasi memori sekaligus sebesar yang dibutuhkan sebelum loop mulai.
         for (auto& w : j.at("wake_words")) {
             WakeWord ww;
             // Support dua format:
@@ -45,6 +46,7 @@ bool config_load(const std::string& path) {
 
         // ── Stop words ─────────────────────────────────────────────────────
         g_stopWords.clear();
+        g_stopWords.reserve(j.at("stop_words").size());
         for (auto& s : j.at("stop_words"))
             g_stopWords.push_back(s.get<std::string>());
 
@@ -52,6 +54,7 @@ bool config_load(const std::string& path) {
 
         // ── Commands ───────────────────────────────────────────────────────
         g_commands.clear();
+        g_commands.reserve(j.at("commands").size());
         for (auto& c : j.at("commands")) {
             Command cmd;
             cmd.shell  = c.value("shell", "");

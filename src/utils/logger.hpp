@@ -25,7 +25,7 @@ inline void err(const std::string& module, const std::string& msg) {
 inline void banner() {
     std::cout << C_BOLD << C_CYAN
               << "╔══════════════════════════════════╗\n"
-              << "║     NEBULA V10.3  —  HYPRLAND    ║\n"
+              << "║     NEBULA V10.4  —  HYPRLAND    ║\n"
               << "║            Optimation            ║\n"
               << "╚══════════════════════════════════╝\n"
               << C_RESET;

@@ -101,6 +101,29 @@ void NebulaEngine::check_timeouts() {
     }
 }
 
+// Pisahkan routing logic jadi method sendiri
+void NebulaEngine::process_audio(const char* buf, int n) {
+    // logger::info("ntahlah", wakeword_ready_ ? "ready oi": "no redy");
+    // not ready -> vosk langsung
+    if (!wakeword_ready_) {
+        run_listening_phase(buf, static_cast<int>(n));
+        return;
+    }
+
+    // ready -> NN --> accept -> vosk
+    // MODE BARU: dua fase
+    if (state::get() == state::State::Idle)
+        run_idle_phase(buf, static_cast<int>(n));
+    else
+        run_listening_phase(buf, static_cast<int>(n));
+}
+
+audio_capture::StreamMode NebulaEngine::current_stream_mode() const {
+    return (state::get() == state::State::Idle && wakeword_ready_)
+        ? audio_capture::StreamMode::IDLE
+        : audio_capture::StreamMode::LISTENING;
+}
+
 void NebulaEngine::run() {
     if(!stream.open()) return;
 
@@ -114,13 +137,8 @@ void NebulaEngine::run() {
     char buf[3200];
     while (g_running) {
         // LOGIKA SWITCHING STREAM (RAW vs FILTER)
-        audio_capture::StreamMode target_mode = (state::get() == state::State::Idle && wakeword_ready_)
-            ? audio_capture::StreamMode::IDLE
-            : audio_capture::StreamMode::LISTENING;
-    
         // mode stream diganti, mulai baca dari awal
-        if(stream.switch_to(target_mode)) continue; 
-
+        if(stream.switch_to(current_stream_mode())) continue; 
 
         const size_t n = stream.read(buf, sizeof(buf));
         if (n == 0) break;
@@ -131,19 +149,7 @@ void NebulaEngine::run() {
             check_timeouts();
         }
 
-        // logger::info("ntahlah", wakeword_ready_ ? "ready oi": "no redy");
-        // not ready -> vosk langsung
-        if (!wakeword_ready_) {
-            run_listening_phase(buf, static_cast<int>(n));
-            continue;
-        }
-
-        // ready -> NN --> accept -> vosk
-        // MODE BARU: dua fase
-        if (state::get() == state::State::Idle)
-            run_idle_phase(buf, static_cast<int>(n));
-        else
-            run_listening_phase(buf, static_cast<int>(n));
+        process_audio(buf, static_cast<int>(n));
     }
 }
 

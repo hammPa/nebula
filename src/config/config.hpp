@@ -23,3 +23,14 @@ extern int g_listenTimeoutSec;
 
 bool config_load(const std::string& path);
 std::string config_build_grammar();
+
+// Deteksi OS untuk Path State File
+#if defined(_WIN32)
+    #define NEBULA_STATE_PATH "C:\\Temp\\nebula_state" 
+#elif defined(__APPLE__)
+    // macOS
+    #define NEBULA_STATE_PATH "/tmp/nebula_state"
+#else
+    // Linux/Unix (Default ke tmpfs di RAM)
+    #define NEBULA_STATE_PATH "/tmp/nebula_state"
+#endif

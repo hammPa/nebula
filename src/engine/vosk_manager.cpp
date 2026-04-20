@@ -30,6 +30,13 @@ bool VoskManager::load() {
 
     loaded_ = true;
     logger::info("VOSK", "Model dimuat ke RAM.");
+
+    FILE* state_file = fopen(NEBULA_STATE_PATH, "w");
+    if (state_file) {
+        fputs("loaded\n", state_file);
+        fclose(state_file);
+    }
+
     return true;
 }
 
@@ -40,6 +47,12 @@ void VoskManager::unload() {
     loaded_ = false;
     malloc_trim(0);
     logger::info("VOSK", "Model diturunkan dari RAM.");
+
+    FILE* state_file = fopen(NEBULA_STATE_PATH, "w");
+    if (state_file) {
+        fputs("unloaded\n", state_file);
+        fclose(state_file);
+    }
 }
 
 bool VoskManager::accept(const char* buf, int n) {

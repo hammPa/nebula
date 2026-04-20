@@ -1,6 +1,7 @@
 #include "wakeword.hpp"
 #include "../utils/logger.hpp"
 #include <algorithm>
+#include <numeric>
 
 WakeWordDetector::WakeWordDetector()
     : env_(ORT_LOGGING_LEVEL_WARNING, "nebula_wakeword"),
@@ -24,6 +25,13 @@ bool WakeWordDetector::init(const std::string& model_path) {
 
         session_ = std::make_unique<Ort::Session>(env_, model_path.c_str(), session_opts_);
 
+        // Verifikasi input/output name dari model
+        Ort::AllocatorWithDefaultOptions alloc;
+        auto in_name  = session_->GetInputNameAllocated(0, alloc);
+        auto out_name = session_->GetOutputNameAllocated(0, alloc);
+        logger::info("WAKEWORD", "Input  : " + std::string(in_name.get()));
+        logger::info("WAKEWORD", "Output : " + std::string(out_name.get()));
+
         ready_ = true;
         logger::info("WAKEWORD", "Model MFCC & CRNN ONNX berhasil dimuat.");
         return true;
@@ -33,9 +41,7 @@ bool WakeWordDetector::init(const std::string& model_path) {
     }
 }
 
-bool WakeWordDetector::feed(const int16_t* pcm, int num_samples) {
-    if (!ready_) return false;
-
+bool WakeWordDetector::check_energy(const int16_t* pcm, int num_samples){
     float chunk_energy = 0.0f; // Menyimpan total energi dari potongan audio saat ini
 
     // Tulis ke ring buffer dan konversi int16 ke float [-1.0, 1.0]
@@ -47,45 +53,48 @@ bool WakeWordDetector::feed(const int16_t* pcm, int num_samples) {
         chunk_energy += val * val;
     }
 
-    // Hitung rata-rata energi (RMS kuadrat) khusus untuk potongan (chunk) terbaru ini
-    float current_chunk_rms_sq = chunk_energy / num_samples;
-
     // Akumulasi sampel (Inferensi tiap 8000 sampel / 500ms)
     accumulated_samples_ += num_samples;
     if (accumulated_samples_ < INFER_STRIDE_SAMPLES) return false; 
     accumulated_samples_ = 0;
+
+    // Hitung rata-rata energi (RMS kuadrat) khusus untuk potongan (chunk) terbaru ini
+    float current_chunk_rms_sq = chunk_energy / num_samples;    
 
     // Cek Keheningan Awal (Early Exit)
     // Jika 500ms terakhir ini hening, batalkan semua proses berat di bawahnya.
     if (current_chunk_rms_sq < SILENCE_THRESHOLD_SQ) {
         // CPU Anda terbebas dari alokasi memori dan inferensi di sini!
         // logger::info("WAKEWORD_DEBUG", "SKIP (hening) rms_sq=" + std::to_string(current_chunk_rms_sq));
+        detection_count_ = 0;
         return false; 
     }
+    return true;
+}
 
+
+bool WakeWordDetector::prepare_window(){
     // Ekstrak audio dari ring buffer menjadi linear (oldest -> newest)
-    float dc_mean = 0.0f;
+    float rms = 0.0f;
     for (int i = 0; i < TARGET_SAMPLES; ++i) {
         float val = audio_buf_[(buf_pos_ + i) % TARGET_SAMPLES];
         linear_buf_[i] = val;
-        dc_mean += val; 
+        rms += val * val;
     }
 
-    // Hilangkan DC Offset & Hitung RMS untuk cek keheningan
-    dc_mean /= TARGET_SAMPLES;
-    float rms = 0.0f;
-    for (int i = 0; i < TARGET_SAMPLES; ++i) {
-        linear_buf_[i] -= dc_mean; 
-        rms += linear_buf_[i] * linear_buf_[i];
+    // Cek keheningan keseluruhan window
+    if ((rms / TARGET_SAMPLES) < SILENCE_THRESHOLD_SQ) {
+        detection_count_ = 0;
+        return false;
     }
-    float rms_sq = rms / TARGET_SAMPLES; // rms² tanpa sqrt
-    if (rms_sq < SILENCE_THRESHOLD_SQ) return false;
+    return true;
+}
 
+bool WakeWordDetector::run_inference(){
+    static const char* in_names[]  = {"mfcc_pcm_audio"};
+    static const char* out_names[] = {"output"};
     try {
-        static const char* in_names[]  = {"mfcc_pcm_audio"};
-        static const char* out_names[] = {"output"};
 
-        Ort::RunOptions run_opts{nullptr};
         Ort::Value pcm_tensor = Ort::Value::CreateTensor<float>(
             mem_info_, linear_buf_.data(), linear_buf_.size(),
             pcm_shape.data(), pcm_shape.size()
@@ -121,6 +130,13 @@ bool WakeWordDetector::feed(const int16_t* pcm, int num_samples) {
     }
 
     return false;
+}
+
+bool WakeWordDetector::feed(const int16_t* pcm, int num_samples) {
+    if (!ready_) return false;
+    if(!check_energy(pcm, num_samples)) return false;
+    if(!prepare_window()) return false;
+    return run_inference();
 }
 
 void WakeWordDetector::reset_buffer() {

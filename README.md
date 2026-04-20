@@ -11,16 +11,29 @@
 
 ## Pembaruan
 
-1. **Fork Feedback Audio Optimation:** Mengubah implementasi feedback menjadi 1 fork yang awalnya 2 fork.
-2. **Capture Config Optimation:** Menjadikan perintah `arecord` dan `sox` sebagai `constexpr` agar tidak ada alokasi heap saat `open_stream()` dipanggil.
-3. **Nebula Engine Modularization:** Memecah `nebula_engine` menjadi 3 file terpisah berdasarkan tanggung jawab.
+1. **WakeWord Optimation:** Menaikkan silence threshold dan memodularkan fungsi feed menjadi1. **WakeWord Optimization:** Memecah fungsi `feed()` menjadi 3 fungsi private terpisah berdasarkan tanggung jawab.
 
-   **Sebelum:** Semua logika (Vosk lifecycle, stream switching, timeout, loop utama) ada di dalam satu class `NebulaEngine`.
+   **Sebelum:** Semua logika (tulis ring buffer, DC removal, inferensi ONNX, debounce) berada di dalam satu fungsi `feed()`.
 
    **Sesudah:**
-   - `vosk_manager.hpp/.cpp` — mengenkapsulasi semua urusan Vosk: load/unload model, build grammar, accept waveform, dan return hasil JSON. Termasuk guard: jika `rec` gagal dibuat saat `load()`, `model` otomatis di-reset.
-   - `stream_controller.hpp/.cpp` — mengenkapsulasi buka/tutup stream `arecord`/`sox`, switch mode IDLE↔LISTENING, dan baca audio.
-   - `nebula_engine.hpp/.cpp` — kini hanya berperan sebagai orkestrator: memanggil `VoskManager` dan `StreamController`, dispatch ke fase yang sesuai, dan menangani timeout lewat `check_timeouts()`.
+   - `check_energy()` — menulis ring buffer, stride gate, dan cek RMS chunk 500ms
+   - `prepare_window()` — ekstraksi window 1.5 detik, DC removal, dan cek RMS penuh
+   - `run_inference()` — inferensi ONNX dan debounce 2 frame berturut-turut.
+2. **NebulaEngine Refactor:** Memecah logika `run()` menjadi method-method yang lebih terfokus.
+
+   **Sebelum:** Loop utama `run()` menangani stream switching, routing phase, dan counter management secara bersamaan dalam satu blok.
+
+   **Sesudah:**
+   - `process_audio()` — routing audio ke fase yang tepat (idle/listening) berdasarkan state dan ketersediaan wake word
+   - `current_stream_mode()` — menentukan `StreamMode` yang dibutuhkan berdasarkan state saat ini
+   - `run()` — hanya bertanggung jawab atas loop utama, baca buffer, dan memanggil method di atas
+3. **Pipeline Fusion: MFCC + CRNN → nebula_full.onnx**
+   Sebelum: Pipeline inferensi terbagi dua, preprocessing MFCC dilakukan manual di C++ (DC removal, normalisasi per-frekuensi), lalu hasilnya dikirim ke model CRNN sebagai tensor [1, 1, 40, 148]. Ini menyebabkan mismatch karena nebula_full.onnx sudah mengandung MFCC preprocessor di dalamnya, sehingga MFCC dihitung dua kali.
+   Sesudah: wakeword.cpp hanya melakukan konversi int16 → - float / 32768.0f, tanpa normalisasi manual
+   - Input tensor berubah dari [1, 1, 40, 148] menjadi [1, 24000] (raw float audio)
+   - Input name diperbarui dari "input" menjadi "mfcc_pcm_audio" sesuai nama node di fused model
+   - Stride inferensi diperkecil dari 8000 → 4000 sampel (500ms → 250ms) agar wake word pendek tidak luput antar window
+   - Verifikasi nama input/output ONNX ditambahkan saat init() untuk memudahkan debugging
 
 ## Tech Stack
 
