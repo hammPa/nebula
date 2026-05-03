@@ -25,12 +25,17 @@ bool WakeWordDetector::init(const std::string& model_path) {
 
         session_ = std::make_unique<Ort::Session>(env_, model_path.c_str(), session_opts_);
 
+        pcm_tensor = Ort::Value::CreateTensor<float>(
+            mem_info_, linear_buf_.data(), linear_buf_.size(),
+            pcm_shape.data(), pcm_shape.size()
+        );
+
         // Verifikasi input/output name dari model
-        Ort::AllocatorWithDefaultOptions alloc;
-        auto in_name  = session_->GetInputNameAllocated(0, alloc);
-        auto out_name = session_->GetOutputNameAllocated(0, alloc);
-        logger::info("WAKEWORD", "Input  : " + std::string(in_name.get()));
-        logger::info("WAKEWORD", "Output : " + std::string(out_name.get()));
+        // Ort::AllocatorWithDefaultOptions alloc;
+        // auto in_name  = session_->GetInputNameAllocated(0, alloc);
+        // auto out_name = session_->GetOutputNameAllocated(0, alloc);
+        // logger::info("WAKEWORD", "Input  : " + std::string(in_name.get()));
+        // logger::info("WAKEWORD", "Output : " + std::string(out_name.get()));
 
         ready_ = true;
         logger::info("WAKEWORD", "Model MFCC & CRNN ONNX berhasil dimuat.");
@@ -76,6 +81,7 @@ bool WakeWordDetector::check_energy(const int16_t* pcm, int num_samples){
 bool WakeWordDetector::prepare_window(){
     // Ekstrak audio dari ring buffer menjadi linear (oldest -> newest)
     float rms = 0.0f;
+    float max_amp = 0.0f;
     for (int i = 0; i < TARGET_SAMPLES; ++i) {
         float val = audio_buf_[(buf_pos_ + i) % TARGET_SAMPLES];
         linear_buf_[i] = val;
@@ -87,6 +93,11 @@ bool WakeWordDetector::prepare_window(){
         detection_count_ = 0;
         return false;
     }
+    
+    if (max_amp > 0.0f) {
+        for (int i = 0; i < TARGET_SAMPLES; ++i)
+            linear_buf_[i] = linear_buf_[i] / max_amp * 0.9f;
+    }
     return true;
 }
 
@@ -94,12 +105,6 @@ bool WakeWordDetector::run_inference(){
     static const char* in_names[]  = {"mfcc_pcm_audio"};
     static const char* out_names[] = {"output"};
     try {
-
-        Ort::Value pcm_tensor = Ort::Value::CreateTensor<float>(
-            mem_info_, linear_buf_.data(), linear_buf_.size(),
-            pcm_shape.data(), pcm_shape.size()
-        );
-
         auto results = session_->Run(
             run_opts, in_names, &pcm_tensor, 1, out_names, 1
         );

@@ -16,7 +16,8 @@ static constexpr int   TARGET_SAMPLES  = static_cast<int>(SAMPLE_RATE * TARGET_D
 
 // Threshold deteksi
 static constexpr float DETECT_THRESHOLD = 0.85f;  
-static constexpr float SILENCE_THRESHOLD_SQ = 1e-6f;
+static constexpr float SILENCE_THRESHOLD_SQ = 1e-4f; // percakapan normal
+// static constexpr float SILENCE_THRESHOLD_SQ = 1e-3f;
     
 static constexpr int INFER_STRIDE_SAMPLES = 8000; // Inferensi setiap 500ms
 
@@ -47,7 +48,7 @@ private:
     std::unique_ptr<Ort::Session>   session_;
     Ort::MemoryInfo                 mem_info_;
     Ort::RunOptions run_opts{nullptr};
-
+    Ort::Value pcm_tensor{nullptr};
     
     // Ring buffer audio - float[-1,1]
     std::vector<float> audio_buf_;   
